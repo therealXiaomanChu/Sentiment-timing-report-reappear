@@ -49,7 +49,7 @@ class DataLoader:
         # The paths here are what you specified; please ensure these files are in your Google Drive and the paths are correct
         # 使用相对路径，假设数据文件在上级目录的data文件夹中
         current_dir = os.path.dirname(os.path.abspath(__file__))
-        data_dir = os.path.join(os.path.dirname(current_dir), 'data')
+        data_dir = os.path.join(current_dir, 'data')
         
         self.pct_path = os.path.join(data_dir, '主板涨跌幅数据.xlsx')
         self.open_path = os.path.join(data_dir, '主板开盘价数据.xlsx')

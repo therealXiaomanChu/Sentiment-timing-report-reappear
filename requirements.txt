@@ -1,0 +1,8 @@
+pandas>=2.1.0
+numpy>=1.25.0
+matplotlib>=3.7.0
+seaborn>=0.13.0
+scikit-learn>=1.3.0
+scipy>=1.11.0
+openpyxl>=3.1.2
+# torch and tensorflow are optional, install manually if needed
