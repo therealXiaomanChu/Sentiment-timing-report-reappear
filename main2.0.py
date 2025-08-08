@@ -847,16 +847,17 @@ class StrategyBacktester:
             # 获取前一日情绪得分
             prev_sentiment = sentiment_scores_aligned.loc[prev_date]
 
-            # 确定目标仓位（动态阈值）
-            if prev_sentiment > self.factors_df['打板收益'].quantile(0.95):  # 前5%
+            # 确定目标仓位（基于情绪分位数）
+            q = self.sentiment_scores.quantile
+            if prev_sentiment > q(0.95):
                 target_position = 1.0
-            elif prev_sentiment > self.factors_df['打板收益'].quantile(0.75):  # 前25%
+            elif prev_sentiment > q(0.75):
                 target_position = 0.8
-            elif prev_sentiment > self.factors_df['打板收益'].quantile(0.5):  # 前50%
+            elif prev_sentiment > q(0.50):
                 target_position = 0.6
-            elif prev_sentiment > self.factors_df['打板收益'].quantile(0.25):  # 后25%
+            elif prev_sentiment > q(0.25):
                 target_position = 0.4
-            elif prev_sentiment > self.factors_df['打板收益'].quantile(0.05):  # 后5%
+            elif prev_sentiment > q(0.05):
                 target_position = 0.2
             else:
                 target_position = 0.0
@@ -898,10 +899,10 @@ class StrategyBacktester:
                 'portfolio_value': capital,
                 'commission': commission
             }
-        self.trade_history = pd.concat(
-            [self.trade_history, pd.DataFrame([trade_record])],
-            ignore_index=True
-)
+            self.trade_history = pd.concat(
+                [self.trade_history, pd.DataFrame([trade_record])],
+                ignore_index=True
+            )
 
         # 确保投资组合索引对齐
         self.portfolio = self.portfolio.loc[valid_dates].dropna()
@@ -1122,11 +1123,14 @@ def main():
             
             print("\nDQN模型最终性能:")
             final_hist = dqn_results['final_history']
-            ann_return = (final_hist["equity"].iloc[-1] ** (252/len(final_hist))) - 1
-            max_dd = 1 - (final_hist["equity"].min() / final_hist["equity"].cummax().max())
+            equity = final_hist['equity']
+            ret = equity.pct_change().dropna()
+            ann_return = (equity.iloc[-1] / equity.iloc[0]) ** (252 / len(equity)) - 1
+            max_dd = (equity / equity.cummax() - 1).min()
+            sharpe = (ret.mean() / ret.std()) * np.sqrt(252) if ret.std() > 0 else 0
             print(f"年化收益率: {ann_return:.2%}")
-            print(f"最大回撤: {max_dd:.2%}")
-            print(f"夏普比率: {(ann_return / (final_hist['equity'].pct_change().std() * np.sqrt(252))):.2f}")
+            print(f"最大回撤: {abs(max_dd):.2%}")
+            print(f"夏普比率: {sharpe:.2f}")
 
             print("\n因子权重分配:")
             if traditional_model.weights:
