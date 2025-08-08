@@ -10,9 +10,12 @@ import seaborn as sns
 import os
 import pickle
 import gc
-import tensorflow as tf
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import LSTM, Dense, Dropout
+# 可选导入 TensorFlow（若不可用则跳过 LSTM）
+try:
+    import tensorflow as tf  # noqa: F401
+    TF_AVAILABLE = True
+except Exception:
+    TF_AVAILABLE = False
 from scipy.stats import spearmanr, kendalltau
 from sklearn.linear_model import LinearRegression, Ridge
 from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
@@ -49,7 +52,7 @@ class DataLoader:
         # The paths here are what you specified; please ensure these files are in your Google Drive and the paths are correct
         # 使用相对路径，假设数据文件在上级目录的data文件夹中
         current_dir = os.path.dirname(os.path.abspath(__file__))
-        data_dir = os.path.join(os.path.dirname(current_dir), 'data')
+        data_dir = os.path.join(current_dir, 'data')
         
         self.pct_path = os.path.join(data_dir, '主板涨跌幅数据.xlsx')
         self.open_path = os.path.join(data_dir, '主板开盘价数据.xlsx')
@@ -424,15 +427,18 @@ class SentimentModel:
             '岭回归': Ridge(alpha=1.0),
             '随机森林': RandomForestRegressor(n_estimators=100, random_state=42, max_depth=5),
             '梯度提升': GradientBoostingRegressor(n_estimators=100, random_state=42, max_depth=3),
-            'LSTM': self.build_lstm_model()
         }
+        if TF_AVAILABLE:
+            self.models['LSTM'] = self.build_lstm_model()
         self.best_model = None
         self.best_score = -np.inf
         self.weights = None
         self.sentiment_scores = None
 
     def build_lstm_model(self):
-        """构建LSTM模型"""
+        """构建LSTM模型（仅在TF可用时）"""
+        if not TF_AVAILABLE:
+            raise RuntimeError("TensorFlow 不可用，无法构建 LSTM 模型")
         from tensorflow.keras.models import Sequential
         from tensorflow.keras.layers import LSTM, Dense, Dropout
 
@@ -593,7 +599,7 @@ class SentimentModel:
         y_full_aligned = combined_full[y_col]
 
         X_full_scaled = self.scaler.transform(X_full_aligned)
-        if self.best_model_name == 'LSTM':
+        if TF_AVAILABLE and self.best_model_name == 'LSTM':
             X_full_lstm, y_full_lstm = self.create_sequences(X_full_scaled, y_full_aligned, seq_length)
             self.best_model.fit(X_full_lstm, y_full_lstm)
         else:
@@ -604,7 +610,7 @@ class SentimentModel:
         self.calculate_feature_weights(selected_features)
 
         # 计算情绪得分
-        if self.best_model_name == 'LSTM':
+        if TF_AVAILABLE and self.best_model_name == 'LSTM':
             X_all_lstm, _ = self.create_sequences(self.scaler.transform(self.factors_df[X_cols]),
                                                self.factors_df[y_col], seq_length)
             sentiment_scores = self.best_model.predict(X_all_lstm).flatten()
